@@ -1,6 +1,6 @@
 # MCAnalysis
 
-Analyze the effect of menstrual cycle phase on health outcomes using GAM models.
+Analyze the effect of menstrual cycle phase on health, physiology or other outcomes using GAM models.
 
 Available for both **R** and **Python**.
 
@@ -8,6 +8,7 @@ Available for both **R** and **Python**.
 
 - Process period dates and label cycle days (Day 0 = period start)
 - Filter cycles by length (default 21-35 days)
+- Filters for minimum of 5 observations in each assumed phase for each user.
 - Normalize outcomes to percentage of individual mean
 - Fit cyclic GAM using Fourier basis
 - Identify turning points (peaks/troughs)
