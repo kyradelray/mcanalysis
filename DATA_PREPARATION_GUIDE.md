@@ -177,24 +177,134 @@ confounders.to_csv("confounders.csv", index=False)
 
 ---
 
+## Exploratory Data Analysis
+
+Before running the main analysis, it's recommended to explore your data to understand its structure and quality.
+
+### Quick Data Summary
+
+```python
+from mcanalysis import data_summary
+
+# Get a text summary of your data
+summary = data_summary(
+    period_dates=periods,
+    outcome_data=outcomes,
+    confounder_data=confounders,  # optional
+    id_col='user_id',
+    date_col='period_date',
+    outcome_col='outcome',
+    outcome_date_col='date'
+)
+print(summary.to_string(index=False))
+```
+
+### Run Full Exploratory Analysis
+
+```python
+from mcanalysis import run_exploratory_analysis
+
+# Generate all exploratory plots and summaries
+results = run_exploratory_analysis(
+    period_dates=periods,
+    outcome_data=outcomes,
+    confounder_data=confounders,  # optional
+    id_col='user_id',
+    date_col='period_date',
+    outcome_col='outcome',
+    outcome_date_col='date',
+    save_dir='output_folder'  # optional: save plots to folder
+)
+```
+
+This generates:
+- **Outcome distribution**: Histogram and boxplot of your outcome variable
+- **Cycle length distribution**: Shows valid (21-35 days) vs invalid cycles
+- **Observations per user**: How much data each person has
+- **Confounder distributions**: Histograms of all confounder variables
+
+### Individual Exploratory Plots
+
+```python
+from mcanalysis import (
+    plot_outcome_distribution,
+    plot_cycle_lengths,
+    plot_observations_per_user,
+    plot_confounder_distributions
+)
+
+# Plot outcome distribution
+plot_outcome_distribution(outcomes, outcome_col='outcome')
+
+# Plot cycle lengths (shows valid vs invalid)
+fig, summary = plot_cycle_lengths(periods, id_col='user_id', date_col='period_date')
+print(summary)  # See cycle length statistics
+
+# Plot observations per user
+fig, summary = plot_observations_per_user(outcomes, id_col='user_id')
+
+# Plot confounder distributions
+plot_confounder_distributions(confounders, id_col='user_id')
+```
+
+### R Equivalent
+
+```r
+library(mcanalysis)
+
+# Run full exploratory analysis
+results <- run_exploratory_analysis(
+    period_dates = periods,
+    outcome_data = outcomes,
+    confounder_data = confounders,
+    id_col = "user_id",
+    date_col = "period_date",
+    outcome_col = "outcome",
+    outcome_date_col = "date",
+    save_dir = "output_folder"
+)
+
+# Or run individual plots
+plot_outcome_distribution(outcomes, outcome_col = "outcome")
+plot_cycle_lengths(periods, id_col = "user_id", date_col = "period_date")
+plot_observations_per_user(outcomes, id_col = "user_id")
+plot_confounder_distributions(confounders, id_col = "user_id")
+```
+
+### What to Look For
+
+| Check | What to Look For | Action if Problem |
+|-------|------------------|-------------------|
+| Outcome distribution | Reasonable range, no extreme outliers | Remove outliers or transform data |
+| Cycle lengths | Most cycles 21-35 days | If many invalid, check period date accuracy |
+| Observations per user | At least 10+ per person | May need to lower `min_negative_obs`/`min_positive_obs` |
+| Confounders | No extreme values, reasonable distributions | Check for data entry errors |
+
+---
+
 ## Example: Complete Workflow
 
 ```python
 import pandas as pd
-from mcanalysis import MCAnalysis
+from mcanalysis import MCAnalysis, run_exploratory_analysis
 
 # Load your prepared data
 periods = pd.read_csv("periods.csv")
 outcomes = pd.read_csv("outcomes.csv")
 confounders = pd.read_csv("confounders.csv")  # optional
 
-# Check your data
-print("Periods:", periods.shape)
-print("Outcomes:", outcomes.shape)
-print("Unique users in periods:", periods['user_id'].nunique())
-print("Unique users in outcomes:", outcomes['user_id'].nunique())
+# Step 1: Explore your data first
+run_exploratory_analysis(
+    period_dates=periods,
+    outcome_data=outcomes,
+    confounder_data=confounders,
+    id_col='user_id',
+    date_col='period_date',
+    outcome_col='outcome',
+    outcome_date_col='date'
+)
 
-# Run analysis
+# Step 2: Run the main analysis
 mc = MCAnalysis(
     period_dates=periods,
     outcome_data=outcomes,
