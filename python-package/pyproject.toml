@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcanalysis"
+version = "0.1.0"
+description = "Menstrual Cycle Analysis - Analyze the effect of menstrual cycle phase on outcomes"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "Kyra Delray", email = "kyra.delray@wolfson.ox.ac.uk"}
+]
+keywords = ["menstrual cycle", "biostatistics", "GAM", "reproductive health"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+dependencies = [
+    "pandas>=1.3.0",
+    "numpy>=1.20.0",
+    "matplotlib>=3.4.0",
+    "pygam>=0.8.0",
+    "statsmodels>=0.13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "flake8>=5.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/kyradelray/mcanalysis"
+Documentation = "https://github.com/kyradelray/mcanalysis#readme"
+Repository = "https://github.com/kyradelray/mcanalysis"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 100
+target-version = ["py38", "py39", "py310", "py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,26 @@
+Package: mcanalysis
+Title: Menstrual Cycle Analysis
+Version: 0.1.0
+Authors@R:
+    person("Kyra", "Delray", email = "kyra.delray@wolfson.ox.ac.uk", role = c("aut", "cre"))
+Description: Analyze the effect of menstrual cycle phase on outcomes using
+    Generalized Additive Models (GAM). Takes period dates and outcome data,
+    processes cycles, normalizes outcomes to individual means, fits GAM models,
+    identifies inflection points, and produces publication-ready visualizations.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports:
+    dplyr (>= 1.0.0),
+    tidyr (>= 1.2.0),
+    lubridate (>= 1.8.0),
+    mgcv (>= 1.8.0),
+    ggplot2 (>= 3.4.0),
+    purrr (>= 0.3.0)
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
