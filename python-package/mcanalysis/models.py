@@ -113,9 +113,10 @@ def fit_gam(
     """
     import statsmodels.api as sm
 
-    # Prepare data
-    X_days = df[day_col].values
-    y = df[outcome_col].values
+    # Prepare data - remove NaN values
+    clean_df = df.dropna(subset=[day_col, outcome_col])
+    X_days = clean_df[day_col].values
+    y = clean_df[outcome_col].values
 
     if cyclic:
         # Use Fourier basis for cyclic pattern
@@ -356,8 +357,11 @@ def find_inflections(
             y1, y2 = derivative[idx], derivative[idx + 1]
             if y2 != y1:
                 crossing_day = x1 - y1 * (x2 - x1) / (y2 - y1)
+                # Skip if result is NaN or infinite
+                if np.isnan(crossing_day) or np.isinf(crossing_day):
+                    continue
                 if round_to_whole_days:
-                    crossing_day = round(crossing_day)
+                    crossing_day = int(round(crossing_day))
                 # Only include if within specified range
                 if day_range[0] <= crossing_day <= day_range[1]:
                     result_days.append(crossing_day)
