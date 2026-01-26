@@ -138,6 +138,6 @@ MIT License - Kyra Delray, University of Oxford
 If you use this package in your research, please cite:
 
 ```
-Delray, K. (2024). mcanalysis: Menstrual Cycle Analysis for R and Python.
+Delray, K. (2026). mcanalysis: Menstrual Cycle Analysis for R and Python.
 https://github.com/kyradelray/mcanalysis
 ```
