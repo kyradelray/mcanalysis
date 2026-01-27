@@ -247,20 +247,20 @@ analyze_confounders <- function(df, confounder_data,
 }
 
 
-#' Find Turning Points or Inflection Points
+#' Find Turning Points
 #'
-#' Find turning points (peaks/troughs) or inflection points of the GAM curve.
+#' Find turning points (peaks/troughs) of the GAM curve.
 #'
 #' @param gam_result Result from fit_gam()
-#' @param find_turning_points If TRUE, find turning points (first derivative sign change).
-#'   If FALSE, find inflection points (second derivative sign change). Default TRUE.
+#' @param find_peaks_troughs If TRUE, find turning points (first derivative sign change).
+#'   If FALSE, find points where curvature changes sign. Default TRUE.
 #' @param round_to_whole_days If TRUE, round results to nearest whole day. Default TRUE.
 #' @param day_range Only return points within this range. Default c(-14, 13).
 #'
-#' @return Vector of cycle days where turning/inflection points occur
+#' @return Vector of cycle days where turning points occur
 #' @export
-find_inflections <- function(gam_result,
-                              find_turning_points = TRUE,
+find_turning_points <- function(gam_result,
+                              find_peaks_troughs = TRUE,
                               round_to_whole_days = TRUE,
                               day_range = c(-14, 13)) {
   pred_df <- gam_result$predictions
@@ -272,12 +272,12 @@ find_inflections <- function(gam_result,
   dy <- diff(y) / diff(days)
   days_dy <- (days[-1] + days[-length(days)]) / 2
 
-  if (find_turning_points) {
+  if (find_peaks_troughs) {
     # Find turning points: where first derivative changes sign (peaks/troughs)
     derivative <- dy
     days_d <- days_dy
   } else {
-    # Find inflection points: where second derivative changes sign
+    # Find points where second derivative changes sign
     d2y <- diff(dy) / diff(days_dy)
     days_d <- (days_dy[-1] + days_dy[-length(days_dy)]) / 2
     derivative <- d2y
@@ -328,25 +328,25 @@ find_inflections <- function(gam_result,
 #' Slopes are calculated from the GAM predictions at the turning points.
 #'
 #' @param df Dataset with normalized outcome
-#' @param inflection_points Turning points from find_inflections()
+#' @param turning_points Turning points from find_turning_points()
 #' @param gam_result Optional GAM result to use for slope calculation
 #' @param outcome_col Name of outcome column (default "a")
 #' @param day_col Name of cycle day column (default "cycle_day")
 #'
 #' @return Data frame with linear model results for each phase
 #' @export
-fit_phase_models <- function(df, inflection_points,
+fit_phase_models <- function(df, turning_points,
                               gam_result = NULL,
                               outcome_col = "a",
                               day_col = "cycle_day") {
 
-  if (length(inflection_points) < 2) {
-    warning("Need at least 2 inflection points for phase models")
+  if (length(turning_points) < 2) {
+    warning("Need at least 2 turning points for phase models")
     return(data.frame())
   }
 
-  # Sort inflection points
-  inflections <- sort(inflection_points)
+  # Sort turning points
+  turns <- sort(turning_points)
 
   min_day <- min(df[[day_col]])
   max_day <- max(df[[day_col]])
@@ -360,7 +360,7 @@ fit_phase_models <- function(df, inflection_points,
     gam_values <- list()
     gam_ci_lower <- list()
     gam_ci_upper <- list()
-    for (ip in inflections) {
+    for (ip in turns) {
       closest_idx <- which.min(abs(pred_df$cycle_day - ip))
       gam_values[[as.character(ip)]] <- pred_df$predicted[closest_idx]
       gam_ci_lower[[as.character(ip)]] <- pred_df$ci_lower[closest_idx]
@@ -369,11 +369,11 @@ fit_phase_models <- function(df, inflection_points,
   }
 
   results <- list()
-  n_phases <- length(inflections)
+  n_phases <- length(turns)
 
   for (i in seq_len(n_phases)) {
-    start <- inflections[i]
-    end <- inflections[((i %% n_phases) + 1)]
+    start <- turns[i]
+    end <- turns[((i %% n_phases) + 1)]
 
     # Handle wraparound for cyclical model
     if (end <= start) {

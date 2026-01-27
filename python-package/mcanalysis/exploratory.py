@@ -55,7 +55,7 @@ def plot_outcome_distribution(
     axes[0].legend()
 
     # Box plot
-    axes[1].boxplot(values, vert=True)
+    axes[1].boxplot(values, orientation='vertical')
     axes[1].set_ylabel(outcome_col)
     axes[1].set_title('Box Plot')
 

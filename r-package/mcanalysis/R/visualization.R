@@ -3,7 +3,7 @@
 #' Plot GAM results with confidence intervals and optional phase information.
 #'
 #' @param gam_result Result from fit_gam()
-#' @param inflection_points Optional inflection points to mark
+#' @param turning_points Optional turning points to mark
 #' @param phase_models Optional phase model results
 #' @param raw_data Optional processed data for showing daily means
 #' @param title Plot title
@@ -12,7 +12,7 @@
 #' @param show_significance Whether to show significance annotation (default TRUE)
 #' @param show_phases Whether to shade phases (default TRUE)
 #' @param show_linear_models Whether to show linear phase lines (default TRUE)
-#' @param show_inflection_points Whether to mark inflection points (default TRUE)
+#' @param show_turning_points Whether to mark turning points (default TRUE)
 #' @param show_ci Whether to show confidence interval (default TRUE)
 #' @param show_period_line Whether to show vertical line at day 0 (default TRUE)
 #' @param show_raw_data Whether to show daily means line (default FALSE)
@@ -29,7 +29,7 @@
 #'
 #' @import ggplot2
 plot_cycle_effect <- function(gam_result,
-                               inflection_points = NULL,
+                               turning_points = NULL,
                                phase_models = NULL,
                                raw_data = NULL,
                                title = "Menstrual Cycle Effect on Outcome",
@@ -38,7 +38,7 @@ plot_cycle_effect <- function(gam_result,
                                show_significance = TRUE,
                                show_phases = TRUE,
                                show_linear_models = TRUE,
-                               show_inflection_points = TRUE,
+                               show_turning_points = TRUE,
                                show_ci = TRUE,
                                show_period_line = TRUE,
                                show_raw_data = FALSE,
@@ -139,7 +139,7 @@ plot_cycle_effect <- function(gam_result,
   }
 
   # Add linear model lines
-  if (show_linear_models && !is.null(phase_models) && nrow(phase_models) > 0 && !is.null(inflection_points)) {
+  if (show_linear_models && !is.null(phase_models) && nrow(phase_models) > 0 && !is.null(turning_points)) {
     for (i in seq_len(nrow(phase_models))) {
       pm <- phase_models[i, ]
       line_color <- linear_colors[(i - 1) %% length(linear_colors) + 1]
@@ -178,26 +178,26 @@ plot_cycle_effect <- function(gam_result,
     }
   }
 
-  # Add inflection points
-  if (show_inflection_points && !is.null(inflection_points)) {
-    for (i in seq_along(inflection_points)) {
-      ip <- inflection_points[i]
-      if (ip >= day_range[1] && ip <= day_range[2]) {
-        closest_idx <- which.min(abs(plot_data$cycle_day - ip))
+  # Add turning points
+  if (show_turning_points && !is.null(turning_points)) {
+    for (i in seq_along(turning_points)) {
+      tp <- turning_points[i]
+      if (tp >= day_range[1] && tp <= day_range[2]) {
+        closest_idx <- which.min(abs(plot_data$cycle_day - tp))
         y_val <- plot_data$predicted_pct[closest_idx]
 
         p <- p +
-          ggplot2::geom_vline(xintercept = ip, linetype = "dashed",
+          ggplot2::geom_vline(xintercept = tp, linetype = "dashed",
                               color = "orange", alpha = 0.6) +
           ggplot2::geom_point(
-            data = data.frame(x = ip, y = y_val),
+            data = data.frame(x = tp, y = y_val),
             ggplot2::aes(x = x, y = y),
             color = "orange", size = 4
           ) +
           ggplot2::annotate(
             "label",
-            x = ip, y = y_val,
-            label = paste0("IP ", i, "\n(Day ", round(ip, 1), ")"),
+            x = tp, y = y_val,
+            label = paste0("TP ", i, "\n(Day ", round(tp, 1), ")"),
             size = 3,
             vjust = -0.5
           )

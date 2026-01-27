@@ -121,7 +121,7 @@ Both R and Python support extensive plot customization:
 ```python
 mc.plot(
     show_linear_models=True,    # Show/hide linear phase lines
-    show_inflection_points=True, # Show/hide turning point markers
+    show_turning_points=True,    # Show/hide turning point markers
     show_raw_data=True,          # Show daily means
     show_phases=True,            # Show phase shading
     gam_color='steelblue',       # GAM curve color

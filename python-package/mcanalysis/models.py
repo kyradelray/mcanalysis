@@ -301,15 +301,15 @@ def analyze_confounders(
     return results
 
 
-def find_inflections(
+def find_turning_points(
     gam_result: GAMResult,
     day_col: str = "cycle_day",
-    find_turning_points: bool = True,
+    find_peaks_troughs: bool = True,
     round_to_whole_days: bool = True,
     day_range: tuple = (-14, 13)
 ) -> List[float]:
     """
-    Find inflection points or turning points of the GAM curve.
+    Find turning points (peaks/troughs) of the GAM curve.
 
     Parameters
     ----------
@@ -317,9 +317,9 @@ def find_inflections(
         Fitted GAM result
     day_col : str
         Name of cycle day column in predictions
-    find_turning_points : bool
+    find_peaks_troughs : bool
         If True, find turning points (peaks/troughs where curve changes direction).
-        If False, find inflection points (where curvature changes sign).
+        If False, find points where curvature changes sign.
     round_to_whole_days : bool
         If True, round results to nearest whole day.
     day_range : tuple
@@ -328,7 +328,7 @@ def find_inflections(
     Returns
     -------
     List[float]
-        Cycle days where inflection/turning points occur
+        Cycle days where turning points occur
     """
     pred_df = gam_result.predictions
 
@@ -339,12 +339,12 @@ def find_inflections(
     # Calculate first derivative
     dy = np.gradient(y, days)
 
-    if find_turning_points:
+    if find_peaks_troughs:
         # Find turning points: where first derivative changes sign (peaks/troughs)
         sign_changes = np.where(np.diff(np.sign(dy)))[0]
         derivative = dy
     else:
-        # Find inflection points: where second derivative changes sign
+        # Find points where second derivative changes sign
         d2y = np.gradient(dy, days)
         sign_changes = np.where(np.diff(np.sign(d2y)))[0]
         derivative = d2y
@@ -377,26 +377,26 @@ def find_inflections(
 
 def fit_phase_models(
     df: pd.DataFrame,
-    inflection_points: List[float],
+    turning_points: List[float],
     gam_result: Optional[GAMResult] = None,
     outcome_col: str = "a",
     day_col: str = "cycle_day"
 ) -> List[PhaseModel]:
     """
-    Fit linear models for each phase defined by inflection points.
+    Fit linear models for each phase defined by turning points.
 
-    For a cyclical model with N inflection points, fits N linear models.
+    For a cyclical model with N turning points, fits N linear models.
     If gam_result is provided, slopes are calculated from GAM predictions
-    at the inflection points.
+    at the turning points.
 
     Parameters
     ----------
     df : pd.DataFrame
         Dataset with normalized outcome
-    inflection_points : List[float]
-        Inflection points from find_inflections()
+    turning_points : List[float]
+        Turning points from find_turning_points()
     gam_result : GAMResult, optional
-        If provided, use GAM predictions at inflection points to define slopes
+        If provided, use GAM predictions at turning points to define slopes
     outcome_col : str
         Name of outcome column
     day_col : str
@@ -412,20 +412,20 @@ def fit_phase_models(
     except ImportError:
         raise ImportError("statsmodels is required")
 
-    if len(inflection_points) < 2:
-        warnings.warn("Need at least 2 inflection points for phase models")
+    if len(turning_points) < 2:
+        warnings.warn("Need at least 2 turning points for phase models")
         return []
 
-    # Sort inflection points
-    inflections = sorted(inflection_points)
+    # Sort turning points
+    turns = sorted(turning_points)
 
-    # Get GAM predictions at inflection points if provided
+    # Get GAM predictions at turning points if provided
     gam_values = {}
     gam_ci_lower = {}
     gam_ci_upper = {}
     if gam_result is not None:
         pred_df = gam_result.predictions
-        for ip in inflections:
+        for ip in turns:
             closest_idx = (pred_df["cycle_day"] - ip).abs().idxmin()
             gam_values[ip] = pred_df.loc[closest_idx, "predicted"]
             gam_ci_lower[ip] = pred_df.loc[closest_idx, "ci_lower"]
@@ -438,11 +438,11 @@ def fit_phase_models(
     results = []
 
     # For cyclical model, create phases that wrap around
-    n_phases = len(inflections)
+    n_phases = len(turns)
 
     for i in range(n_phases):
-        start = inflections[i]
-        end = inflections[(i + 1) % n_phases]
+        start = turns[i]
+        end = turns[(i + 1) % n_phases]
 
         # Handle wraparound for cyclical model
         if end <= start:
@@ -460,7 +460,7 @@ def fit_phase_models(
             continue
 
         if gam_result is not None and start in gam_values and end in gam_values:
-            # Calculate slope from GAM predictions at inflection points
+            # Calculate slope from GAM predictions at turning points
             y_start = gam_values[start]
             y_end = gam_values[end]
 

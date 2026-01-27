@@ -13,7 +13,7 @@ from .models import GAMResult, PhaseModel
 
 def plot_cycle_effect(
     gam_result: GAMResult,
-    inflection_points: Optional[List[float]] = None,
+    turning_points: Optional[List[float]] = None,
     phase_models: Optional[List[PhaseModel]] = None,
     raw_data: Optional[pd.DataFrame] = None,
     title: str = "Menstrual Cycle Effect on Outcome",
@@ -22,7 +22,7 @@ def plot_cycle_effect(
     show_significance: bool = True,
     show_phases: bool = True,
     show_linear_models: bool = True,
-    show_inflection_points: bool = True,
+    show_turning_points: bool = True,
     show_ci: bool = True,
     show_period_line: bool = True,
     show_raw_data: bool = False,
@@ -44,8 +44,8 @@ def plot_cycle_effect(
     ----------
     gam_result : GAMResult
         Fitted GAM result
-    inflection_points : List[float], optional
-        Inflection points to mark on plot
+    turning_points : List[float], optional
+        Turning points to mark on plot
     phase_models : List[PhaseModel], optional
         Phase model results to display
     raw_data : pd.DataFrame, optional
@@ -62,8 +62,8 @@ def plot_cycle_effect(
         Whether to shade phases differently
     show_linear_models : bool
         Whether to show linear phase model lines (default True)
-    show_inflection_points : bool
-        Whether to mark inflection points (default True)
+    show_turning_points : bool
+        Whether to mark turning points (default True)
     show_ci : bool
         Whether to show confidence interval (default True)
     show_period_line : bool
@@ -163,22 +163,22 @@ def plot_cycle_effect(
     if show_period_line:
         ax.axvline(x=0, color="red", linestyle=":", alpha=0.7, label="Period Start")
 
-    # Mark inflection points
-    if show_inflection_points and inflection_points:
-        for i, ip in enumerate(inflection_points):
-            if day_range[0] <= ip <= day_range[1]:
-                # Get y value at inflection point (percentage change)
-                closest_idx = (plot_data["cycle_day"] - ip).abs().idxmin()
+    # Mark turning points
+    if show_turning_points and turning_points:
+        for i, tp in enumerate(turning_points):
+            if day_range[0] <= tp <= day_range[1]:
+                # Get y value at turning point (percentage change)
+                closest_idx = (plot_data["cycle_day"] - tp).abs().idxmin()
                 y_val = plot_data.loc[closest_idx, "predicted_pct"]
 
-                ax.axvline(x=ip, color="orange", linestyle="--", alpha=0.6)
-                ax.scatter([ip], [y_val], color="orange", s=100, zorder=5,
+                ax.axvline(x=tp, color="orange", linestyle="--", alpha=0.6)
+                ax.scatter([tp], [y_val], color="orange", s=100, zorder=5,
                           marker="o", edgecolor="black", linewidth=1)
 
                 # Label
                 ax.annotate(
-                    f"IP {i+1}\n(Day {ip:.1f})",
-                    xy=(ip, y_val),
+                    f"TP {i+1}\n(Day {tp:.1f})",
+                    xy=(tp, y_val),
                     xytext=(10, 10),
                     textcoords="offset points",
                     fontsize=9,
@@ -186,7 +186,7 @@ def plot_cycle_effect(
                 )
 
     # Shade phases if provided
-    if show_phases and phase_models and inflection_points:
+    if show_phases and phase_models and turning_points:
         colors = plt.cm.Set3(np.linspace(0, 1, len(phase_models)))
         for i, (pm, color) in enumerate(zip(phase_models, colors)):
             if pm.end_day <= pm.start_day:
@@ -233,12 +233,12 @@ def plot_cycle_effect(
         )
 
     # Add phase model summary and linear model lines if provided
-    if phase_models and inflection_points:
+    if phase_models and turning_points:
         # Get GAM predicted values at turning points (percentage change)
         turning_point_values = {}
-        for ip in inflection_points:
-            closest_idx = (plot_data["cycle_day"] - ip).abs().idxmin()
-            turning_point_values[ip] = plot_data.loc[closest_idx, "predicted_pct"]
+        for tp in turning_points:
+            closest_idx = (plot_data["cycle_day"] - tp).abs().idxmin()
+            turning_point_values[tp] = plot_data.loc[closest_idx, "predicted_pct"]
 
         # Plot linear model lines connecting turning points
         if show_linear_models:

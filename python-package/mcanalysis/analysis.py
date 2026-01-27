@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from .processing import process_periods, filter_cycles, filter_users, add_dummy_day
 from .models import (
     normalize_outcome, fit_gam, analyze_confounders,
-    find_inflections, fit_phase_models,
+    find_turning_points, fit_phase_models,
     GAMResult, PhaseModel, ConfounderResult
 )
 from .visualization import plot_cycle_effect, plot_confounder_effects
@@ -21,7 +21,7 @@ class MCAnalysisResult:
     """Container for complete analysis results."""
     processed_data: pd.DataFrame
     gam_result: GAMResult
-    inflection_points: List[float]
+    turning_points: List[float]
     phase_models: List[PhaseModel]
     confounder_results: Optional[List[ConfounderResult]]
     n_users: int
@@ -161,15 +161,15 @@ class MCAnalysis:
 
         # Step 7: Find turning points (where curve changes direction)
         print("Finding turning points...")
-        inflection_points = find_inflections(
+        turning_points = find_turning_points(
             gam_result,
-            find_turning_points=True,
+            find_peaks_troughs=True,
             round_to_whole_days=True
         )
 
-        # Step 8: Fit phase models from GAM predictions at inflection points
+        # Step 8: Fit phase models from GAM predictions at turning points
         print("Fitting phase models...")
-        phase_models = fit_phase_models(df, inflection_points, gam_result=gam_result)
+        phase_models = fit_phase_models(df, turning_points, gam_result=gam_result)
 
         # Step 9: Analyze confounders if provided
         confounder_results = None
@@ -195,7 +195,7 @@ class MCAnalysis:
         self.results = MCAnalysisResult(
             processed_data=df,
             gam_result=gam_result,
-            inflection_points=inflection_points,
+            turning_points=turning_points,
             phase_models=phase_models,
             confounder_results=confounder_results,
             n_users=n_users,
@@ -207,7 +207,7 @@ class MCAnalysis:
         print(f"  Users: {n_users}")
         print(f"  Observations: {n_observations}")
         print(f"  Cycles: {n_cycles}")
-        print(f"  Inflection points found: {len(inflection_points)}")
+        print(f"  Turning points found: {len(turning_points)}")
         print(f"\n{gam_result.summary}")
 
         return self.results
@@ -239,7 +239,7 @@ class MCAnalysis:
 
         return plot_cycle_effect(
             self.results.gam_result,
-            inflection_points=self.results.inflection_points,
+            turning_points=self.results.turning_points,
             phase_models=self.results.phase_models,
             raw_data=self.results.processed_data,
             title=title,
@@ -314,10 +314,10 @@ GAM MODEL RESULTS
   Deviance explained: {g.deviance_explained * 100:.1f}%
   P-value for cycle effect: {g.p_value:.2e} {'***' if g.p_value < 0.001 else '**' if g.p_value < 0.01 else '*' if g.p_value < 0.05 else '(not significant)'}
 
-INFLECTION POINTS
------------------
-  Number found: {len(r.inflection_points)}
-  Days: {', '.join([f'{ip:.1f}' for ip in r.inflection_points]) if r.inflection_points else 'None'}
+TURNING POINTS
+--------------
+  Number found: {len(r.turning_points)}
+  Days: {', '.join([f'{tp:.1f}' for tp in r.turning_points]) if r.turning_points else 'None'}
 
 PHASE MODELS (Daily Change)
 ---------------------------

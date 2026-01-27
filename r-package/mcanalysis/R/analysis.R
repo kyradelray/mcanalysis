@@ -85,13 +85,13 @@ mc_analysis <- function(period_dates,
   message("Fitting GAM model...")
   gam_result <- fit_gam(df, outcome_col = "a", k = k, cyclic = TRUE)
 
-  # Step 7: Find inflection points
-  message("Finding inflection points...")
-  inflection_points <- find_inflections(gam_result)
+  # Step 7: Find turning points
+  message("Finding turning points...")
+  turning_points <- find_turning_points(gam_result)
 
   # Step 8: Fit phase models from GAM predictions at turning points
   message("Fitting phase models...")
-  phase_models <- fit_phase_models(df, inflection_points, gam_result = gam_result)
+  phase_models <- fit_phase_models(df, turning_points, gam_result = gam_result)
 
   # Step 9: Analyze confounders if provided
   confounder_results <- NULL
@@ -128,8 +128,8 @@ GAM MODEL RESULTS
   Deviance explained: %.1f%%
   P-value for cycle effect: %.2e %s
 
-INFLECTION POINTS
------------------
+TURNING POINTS
+--------------
   Number found: %d
   Days: %s
 
@@ -141,8 +141,8 @@ PHASE MODELS (Daily Change)
     gam_result$deviance_explained * 100,
     gam_result$p_value,
     if (gam_result$p_value < 0.001) "***" else if (gam_result$p_value < 0.01) "**" else if (gam_result$p_value < 0.05) "*" else "(not significant)",
-    length(inflection_points),
-    if (length(inflection_points) > 0) paste(round(inflection_points, 1), collapse = ", ") else "None"
+    length(turning_points),
+    if (length(turning_points) > 0) paste(round(turning_points, 1), collapse = ", ") else "None"
   )
 
   # Add phase model details
@@ -177,7 +177,7 @@ PHASE MODELS (Daily Change)
   result <- list(
     processed_data = df,
     gam_result = gam_result,
-    inflection_points = inflection_points,
+    turning_points = turning_points,
     phase_models = phase_models,
     confounder_results = confounder_results,
     n_users = n_users,
@@ -192,7 +192,7 @@ PHASE MODELS (Daily Change)
   message(sprintf("  Users: %d", n_users))
   message(sprintf("  Observations: %d", n_obs))
   message(sprintf("  Cycles: %d", n_cycles))
-  message(sprintf("  Inflection points found: %d", length(inflection_points)))
+  message(sprintf("  Turning points found: %d", length(turning_points)))
 
   return(result)
 }
@@ -218,7 +218,7 @@ print.mcanalysis <- function(x, ...) {
 plot.mcanalysis <- function(x, ...) {
   plot_cycle_effect(
     x$gam_result,
-    inflection_points = x$inflection_points,
+    turning_points = x$turning_points,
     phase_models = x$phase_models,
     raw_data = x$processed_data,
     ...
@@ -241,7 +241,7 @@ mc_analyze <- mc_analysis
 mc_plot <- function(results, ...) {
   plot_cycle_effect(
     results$gam_result,
-    inflection_points = results$inflection_points,
+    turning_points = results$turning_points,
     phase_models = results$phase_models,
     raw_data = results$processed_data,
     ...
