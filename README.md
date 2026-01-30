@@ -4,6 +4,10 @@ Analyze the effect of menstrual cycle phase on health, physiology or other outco
 
 Available for both **R** and **Python**.
 
+🛠️ How to use: https://medium.com/@kyradelray/how-to-analyse-menstrual-cycle-effects-with-mcanalysis-a60555b4459f?postPublishedType=initial
+
+📖 Intro, theory & reasoning: https://medium.com/@kyradelray/897485b7eda5
+
 ## Features
 
 - Process period dates and label cycle days (Day 0 = period start)
