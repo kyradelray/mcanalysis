@@ -1320,13 +1320,13 @@ server <- function(input, output, session) {
     dummy_pt <- data.frame(x = NA_real_, y = NA_real_)
 
     p <- p +
-      ggplot2::geom_line(data = dummy_pt,
-        ggplot2::aes(x = x, y = y, linetype = "GAM Fit"),
-        colour = "steelblue", linewidth = 1.5, show.legend = TRUE, na.rm = TRUE) +
       ggplot2::geom_point(data = dummy_pt,
         ggplot2::aes(x = x, y = y, linetype = "95% CI"),
         colour = "steelblue", shape = 15, size = 6, alpha = 0.4,
         show.legend = TRUE, na.rm = TRUE) +
+      ggplot2::geom_line(data = dummy_pt,
+        ggplot2::aes(x = x, y = y, linetype = "GAM Fit"),
+        colour = "steelblue", linewidth = 1.5, show.legend = TRUE, na.rm = TRUE) +
       ggplot2::geom_point(data = dummy_pt,
         ggplot2::aes(x = x, y = y, linetype = "Turning Points"),
         colour = "orange", shape = 16, size = 4,
@@ -1336,17 +1336,17 @@ server <- function(input, output, session) {
     p <- p +
       ggplot2::scale_linetype_manual(
         name = NULL,
-        values = c("GAM Fit" = "solid", "95% CI" = "blank", "Turning Points" = "blank"),
+        values = c("95% CI" = "blank", "GAM Fit" = "solid", "Turning Points" = "blank"),
         guide = ggplot2::guide_legend(
           order = 1,
           nrow = 1,
           override.aes = list(
             colour = c("steelblue", "steelblue", "orange"),
-            linetype = c("solid", "blank", "blank"),
-            linewidth = c(1.5, 0, 0),
-            shape = c(NA, 15, 16),
-            size = c(0, 6, 4),
-            alpha = c(1, 0.4, 1)
+            linetype = c("blank", "solid", "blank"),
+            linewidth = c(0, 1.5, 0),
+            shape = c(15, NA, 16),
+            size = c(6, 0, 4),
+            alpha = c(0.4, 1, 1)
           )
         )
       )
@@ -2121,13 +2121,13 @@ server <- function(input, output, session) {
       dummy_pt <- data.frame(x = NA_real_, y = NA_real_)
 
       p <- p +
-        ggplot2::geom_line(data = dummy_pt,
-          ggplot2::aes(x = x, y = y, linetype = "GAM Fit"),
-          colour = "steelblue", linewidth = 1.5, show.legend = TRUE, na.rm = TRUE) +
         ggplot2::geom_point(data = dummy_pt,
           ggplot2::aes(x = x, y = y, linetype = "95% CI"),
           colour = "steelblue", shape = 15, size = 6, alpha = 0.4,
           show.legend = TRUE, na.rm = TRUE) +
+        ggplot2::geom_line(data = dummy_pt,
+          ggplot2::aes(x = x, y = y, linetype = "GAM Fit"),
+          colour = "steelblue", linewidth = 1.5, show.legend = TRUE, na.rm = TRUE) +
         ggplot2::geom_point(data = dummy_pt,
           ggplot2::aes(x = x, y = y, linetype = "Turning Points"),
           colour = "orange", shape = 16, size = 4,
@@ -2137,17 +2137,17 @@ server <- function(input, output, session) {
       p <- p +
         ggplot2::scale_linetype_manual(
           name = NULL,
-          values = c("GAM Fit" = "solid", "95% CI" = "blank", "Turning Points" = "blank"),
+          values = c("95% CI" = "blank", "GAM Fit" = "solid", "Turning Points" = "blank"),
           guide = ggplot2::guide_legend(
             order = 1,
             nrow = 1,
             override.aes = list(
               colour = c("steelblue", "steelblue", "orange"),
-              linetype = c("solid", "blank", "blank"),
-              linewidth = c(1.5, 0, 0),
-              shape = c(NA, 15, 16),
-              size = c(0, 6, 4),
-              alpha = c(1, 0.4, 1)
+              linetype = c("blank", "solid", "blank"),
+              linewidth = c(0, 1.5, 0),
+              shape = c(15, NA, 16),
+              size = c(6, 0, 4),
+              alpha = c(0.4, 1, 1)
             )
           )
         )
