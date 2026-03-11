@@ -901,16 +901,18 @@ server <- function(input, output, session) {
                 selected = if (length(priority_cols) > 0) priority_cols[1] else ordered_cols[1])
   })
 
-  # Data preview
+  # Data preview (limited to 10 rows to save memory)
  output$data_preview <- DT::renderDT({
     if (input$upload_mode == "combined") {
       req(rv$raw_data)
-      DT::datatable(head(rv$raw_data, 100),
-                options = list(pageLength = 10, scrollX = TRUE))
+      DT::datatable(head(rv$raw_data, 10),
+                options = list(pageLength = 10, scrollX = TRUE, dom = 't'),
+                caption = "Showing first 10 rows as preview")
     } else {
       req(rv$periods)
-      DT::datatable(head(rv$periods, 100),
-                options = list(pageLength = 10, scrollX = TRUE))
+      DT::datatable(head(rv$periods, 10),
+                options = list(pageLength = 10, scrollX = TRUE, dom = 't'),
+                caption = "Showing first 10 rows as preview")
     }
   })
 
