@@ -1,0 +1,10 @@
+name: shiny-app
+title:
+username: kyradelray
+account: kyradelray
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16876318
+bundleId: 11695929
+url: https://kyradelray.shinyapps.io/shiny-app/
+version: 1

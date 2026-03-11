@@ -4,20 +4,33 @@
 library(shiny)
 library(bslib)
 library(DT)
+library(ggplot2)
+library(mgcv)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(purrr)
 
-# Increase max upload size to 500MB
-options(shiny.maxRequestSize = 500 * 1024^2)
+# Increase max upload size to 100MB (reduced for memory)
+options(shiny.maxRequestSize = 100 * 1024^2)
 
-# Install mcanalysis from GitHub if not available
-if (!requireNamespace("mcanalysis", quietly = TRUE)) {
-  if (!requireNamespace("remotes", quietly = TRUE)) {
-    install.packages("remotes")
+# Helper function to clean Inf/NaN values from data
+clean_infinite_values <- function(df) {
+  for (col in names(df)) {
+    if (is.numeric(df[[col]])) {
+      df[[col]][is.infinite(df[[col]])] <- NA
+      df[[col]][is.nan(df[[col]])] <- NA
+    }
   }
-  remotes::install_github("kyradelray/mcanalysis", subdir = "r-package/mcanalysis")
+  df
 }
 
-# Load the mcanalysis package
-library(mcanalysis)
+# Source mcanalysis functions directly
+source("R/models.R")
+source("R/visualization.R")
+source("R/exploratory.R")
+source("R/analysis.R")
+source("R/process_cycles.R")
 
 # Custom CSS for professional styling - Navy Blue Theme
 custom_css <- "
@@ -859,7 +872,8 @@ server <- function(input, output, session) {
 
   observe({
     req(input$confounders_file)
-    rv$confounders <- read.csv(input$confounders_file$datapath, stringsAsFactors = FALSE)
+    conf_data <- read.csv(input$confounders_file$datapath, stringsAsFactors = FALSE)
+    rv$confounders <- clean_infinite_values(conf_data)
   })
 
   # Dynamic outcome selector for combined mode
@@ -888,14 +902,14 @@ server <- function(input, output, session) {
   })
 
   # Data preview
-  output$data_preview <- renderDT({
+ output$data_preview <- DT::renderDT({
     if (input$upload_mode == "combined") {
       req(rv$raw_data)
-      datatable(head(rv$raw_data, 100),
+      DT::datatable(head(rv$raw_data, 100),
                 options = list(pageLength = 10, scrollX = TRUE))
     } else {
       req(rv$periods)
-      datatable(head(rv$periods, 100),
+      DT::datatable(head(rv$periods, 100),
                 options = list(pageLength = 10, scrollX = TRUE))
     }
   })
@@ -1060,9 +1074,9 @@ server <- function(input, output, session) {
   })
 
   # EDA outputs
-  output$data_summary <- renderDT({
+  output$data_summary <- DT::renderDT({
     req(rv$eda_results)
-    datatable(rv$eda_results$summary,
+    DT::datatable(rv$eda_results$summary,
               options = list(pageLength = 20, dom = 't'),
               rownames = FALSE)
   })
@@ -1378,7 +1392,7 @@ server <- function(input, output, session) {
     rv$results$summary
   })
 
-  output$gam_table <- renderDT({
+  output$gam_table <- DT::renderDT({
     req(rv$results)
     gam <- rv$results$gam_result
     df <- data.frame(
@@ -1392,10 +1406,10 @@ server <- function(input, output, session) {
                       ifelse(gam$p_value < 0.05, "*", "ns")))
       )
     )
-    datatable(df, options = list(dom = 't'), rownames = FALSE)
+    DT::datatable(df, options = list(dom = 't'), rownames = FALSE)
   })
 
-  output$phase_table <- renderDT({
+  output$phase_table <- DT::renderDT({
     req(rv$results)
     if (!is.null(rv$results$phase_models) && nrow(rv$results$phase_models) > 0) {
       df <- rv$results$phase_models
@@ -1403,11 +1417,11 @@ server <- function(input, output, session) {
       df$slope_se <- round(df$slope_se, 4)
       df$p_value <- format(df$p_value, scientific = TRUE, digits = 3)
       df$r_squared <- round(df$r_squared, 3)
-      datatable(df, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
+      DT::datatable(df, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
     }
   })
 
-  output$confounder_table <- renderDT({
+  output$confounder_table <- DT::renderDT({
     req(rv$results)
     if (!is.null(rv$results$confounder_results) && nrow(rv$results$confounder_results) > 0) {
       df <- rv$results$confounder_results
@@ -1416,9 +1430,9 @@ server <- function(input, output, session) {
       df$ci_lower <- round(df$ci_lower, 4)
       df$ci_upper <- round(df$ci_upper, 4)
       df$p_value <- format(df$p_value, scientific = TRUE, digits = 3)
-      datatable(df, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
+      DT::datatable(df, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
     } else {
-      datatable(
+      DT::datatable(
         data.frame(Message = "No confounders uploaded. Upload a confounders file to see analysis results."),
         options = list(dom = 't'),
         rownames = FALSE
@@ -1815,12 +1829,12 @@ server <- function(input, output, session) {
   })
 
   # Effect Modifier table
-  output$effect_modifier_table <- renderDT({
+  output$effect_modifier_table <- DT::renderDT({
     req(rv$results)
 
     if (is.null(rv$confounders) || is.null(input$effect_modifier_var) || input$effect_modifier_var == "") {
       return(
-        datatable(
+        DT::datatable(
           data.frame(Message = "Select an effect modifier variable to see stratified results."),
           options = list(dom = 't'),
           rownames = FALSE
@@ -1912,10 +1926,10 @@ server <- function(input, output, session) {
         ))
       }
 
-      datatable(results, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
+      DT::datatable(results, options = list(dom = 't', scrollX = TRUE), rownames = FALSE)
 
     }, error = function(e) {
-      datatable(
+      DT::datatable(
         data.frame(Message = paste("Error:", e$message)),
         options = list(dom = 't'),
         rownames = FALSE
