@@ -464,7 +464,7 @@ ui <- page_sidebar(
             textOutput("plot_title", inline = TRUE),
             tooltip(
               span(icon("circle-question"), style = "cursor: help; color: #6c757d;"),
-              "Y-axis shows how much the outcome varies from each individual's personal average. A value of +2% means the outcome is 2% higher than that person's typical value. This accounts for individual differences, so we can see the cycle effect across all participants.",
+              "Y-axis shows how much the outcome varies from each individual's personal average. A value of +2% means the outcome is 2% higher than that person's personal average. This accounts for individual differences, so we can see the cycle effect across all participants.",
               placement = "left"
             )
           )
