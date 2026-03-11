@@ -554,47 +554,13 @@ ui <- page_sidebar(
         card_header(icon("info-circle"), " Understanding Confounders"),
         card_body(
           div(
-            style = "background-color: #f8f9fa; padding: 1.25rem; border-radius: 8px; font-size: 0.9rem; color: #495057;",
-
-            tags$h6(style = "color: #1e3a5f; margin-bottom: 0.75rem;", icon("question-circle"), " Why adjust for confounders?"),
-            tags$p(
-              "Confounders are external factors that could explain changes in your outcome ",
-              tags$em("independently"), " of the menstrual cycle. Without adjusting for them, you might mistakenly attribute ",
-              "their effects to the cycle itself."
+            style = "background-color: #f8f9fa; padding: 1rem; border-radius: 8px; font-size: 0.9rem; color: #495057;",
+            tags$p(style = "margin-bottom: 0.75rem;",
+              tags$strong("Confounders"), " are external factors that could explain changes in your outcome independently of the menstrual cycle."
             ),
-
-            tags$h6(style = "color: #1e3a5f; margin-top: 1.25rem; margin-bottom: 0.75rem;", icon("list"), " Common confounders"),
-            tags$ul(style = "margin-bottom: 1rem;",
-              tags$li(tags$strong("Day of week:"), " Sleep and activity often differ on weekends vs weekdays"),
-              tags$li(tags$strong("Season/month:"), " Mood, energy, and physiology vary with seasons"),
-              tags$li(tags$strong("Time trends:"), " Outcomes may drift over time due to lifestyle changes"),
-              tags$li(tags$strong("Age:"), " Baseline levels of many outcomes change with age")
-            ),
-
-            tags$h6(style = "color: #1e3a5f; margin-top: 1.25rem; margin-bottom: 0.75rem;", icon("chart-bar"), " Reading the results"),
-            tags$p(tags$strong("The coefficient"), " tells you how much the outcome shifts (in % from each person's mean) when the confounder increases by 1 unit:"),
-            tags$ul(
-              tags$li(tags$span(style = "color: #27ae60;", "Positive (+):"), " Higher confounder value → higher outcome"),
-              tags$li(tags$span(style = "color: #e74c3c;", "Negative (−):"), " Higher confounder value → lower outcome"),
-              tags$li(tags$strong("95% CI not crossing zero:"), " The effect is statistically significant (p < 0.05)")
-            ),
-
-            tags$h6(style = "color: #1e3a5f; margin-top: 1.25rem; margin-bottom: 0.75rem;", icon("lightbulb"), " Example interpretation"),
-            tags$div(
-              style = "background-color: #ffffff; border-left: 3px solid #1e3a5f; padding: 0.75rem 1rem; margin-top: 0.5rem;",
-              tags$p(style = "margin-bottom: 0.5rem;",
-                tags$code("weekend"), " coefficient = ", tags$strong("+3.2"), ", p = 0.002"
-              ),
-              tags$p(style = "margin-bottom: 0;",
-                "→ On weekends, the outcome is ", tags$strong("3.2% higher"), " than on weekdays, ",
-                "after accounting for the menstrual cycle effect. This is statistically significant."
-              )
-            ),
-
-            tags$h6(style = "color: #1e3a5f; margin-top: 1.25rem; margin-bottom: 0.75rem;", icon("exclamation-triangle"), " Important note"),
             tags$p(style = "margin-bottom: 0;",
-              "The main cycle effect plot shows the ", tags$strong("unadjusted"), " relationship. ",
-              "Use the 'Adjusted Cycle Effect Model' section below to see how the curve changes when controlling for confounders."
+              "The coefficient shows how much the outcome shifts (in %) per unit increase in the confounder. ",
+              "Use the ", tags$strong("Adjusted Cycle Effect Model"), " below to see the cycle curve after controlling for confounders."
             )
           )
         )
@@ -628,52 +594,13 @@ ui <- page_sidebar(
       tags$h4(style = "color: #1e3a5f; margin-bottom: 1rem;", icon("code-branch"), " Effect Modifiers"),
 
       card(
-        card_header(icon("info-circle"), " Understanding Effect Modifiers"),
+        card_header(icon("chart-line"), " Effect Modifier Analysis"),
         card_body(
           div(
-            style = "background-color: #fff8e6; padding: 1.25rem; border-radius: 8px; font-size: 0.9rem; color: #495057; border-left: 4px solid #f0ad4e;",
-
-            tags$h6(style = "color: #8a6d3b; margin-bottom: 0.75rem;", icon("question-circle"), " What are effect modifiers?"),
-            tags$p(
-              "Effect modifiers are variables that ", tags$strong("change the strength or direction"), " of the cycle effect itself. ",
-              "Unlike confounders (which shift the outcome level), effect modifiers create ", tags$em("different cycle patterns"), " for different groups."
-            ),
-
-            tags$h6(style = "color: #8a6d3b; margin-top: 1.25rem; margin-bottom: 0.75rem;", icon("not-equal"), " Confounders vs Effect Modifiers"),
-            tags$div(
-              style = "display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 0;",
-              tags$div(
-                style = "background-color: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #e0e0e0;",
-                tags$strong(style = "color: #1e3a5f;", "Confounder"),
-                tags$p(style = "margin-bottom: 0; margin-top: 0.5rem; font-size: 0.85rem;",
-                  "Shifts the ", tags$em("level"), " of your outcome"
-                )
-              ),
-              tags$div(
-                style = "background-color: #ffffff; padding: 1rem; border-radius: 8px; border: 1px solid #f0ad4e;",
-                tags$strong(style = "color: #8a6d3b;", "Effect Modifier"),
-                tags$p(style = "margin-bottom: 0; margin-top: 0.5rem; font-size: 0.85rem;",
-                  "Changes the ", tags$em("cycle pattern"), " itself"
-                )
-              )
-            )
-          )
-        )
-      ),
-
-      card(
-        card_header(
-          div(
-            style = "display: flex; align-items: center; justify-content: space-between;",
-            span(icon("chart-line"), " Effect Modifier Analysis"),
-            tooltip(
-              span(icon("circle-question"), style = "cursor: help; color: #6c757d;"),
-              "Select a variable to see if the cycle effect differs across groups. This fits separate cycle curves for each level of the effect modifier.",
-              placement = "left"
-            )
-          )
-        ),
-        card_body(
+            style = "background-color: #fff8e6; padding: 0.75rem 1rem; border-radius: 6px; font-size: 0.9rem; color: #495057; margin-bottom: 1rem;",
+            tags$strong("Effect modifiers"), " are variables that change the cycle pattern itself for different groups. ",
+            "Select a variable below to compare cycle curves across groups."
+          ),
           uiOutput("effect_modifier_selector"),
           plotOutput("effect_modifier_plot", height = "450px")
         )
