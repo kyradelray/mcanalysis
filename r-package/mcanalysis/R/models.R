@@ -72,7 +72,13 @@ fit_gam <- function(df, outcome_col = "a", day_col = "cycle_day",
                   model_summary$fstatistic[3],
                   lower.tail = FALSE)
     edf <- n_harmonics * 2  # Each harmonic has sin and cos
-    dev_explained <- model_summary$r.squared
+
+    # Calculate R-squared centered around mean (like Python statsmodels)
+    # R's lm with -1 uses uncentered R² which inflates the value
+    y_mean <- mean(y)
+    ss_res <- sum(residuals(model)^2)
+    ss_tot <- sum((y - y_mean)^2)
+    dev_explained <- 1 - (ss_res / ss_tot)
 
     predictions <- data.frame(
       cycle_day = day_range,

@@ -222,7 +222,7 @@ plot_confounder_distributions <- function(confounder_data,
 plot_observations_per_user <- function(outcome_data,
                                         id_col = "user_id",
                                         title = "Observations per User",
-                                        color = "teal") {
+                                        color = "#008080") {
 
   obs_per_user <- table(outcome_data[[id_col]])
   obs_df <- data.frame(n_obs = as.numeric(obs_per_user))

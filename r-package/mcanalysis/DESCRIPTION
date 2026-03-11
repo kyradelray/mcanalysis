@@ -10,7 +10,7 @@ Description: Analyze the effect of menstrual cycle phase on outcomes using
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.3
 Imports:
     dplyr (>= 1.0.0),
     tidyr (>= 1.2.0),
