@@ -8,6 +8,14 @@ library(DT)
 # Increase max upload size to 500MB
 options(shiny.maxRequestSize = 500 * 1024^2)
 
+# Install mcanalysis from GitHub if not available
+if (!requireNamespace("mcanalysis", quietly = TRUE)) {
+  if (!requireNamespace("remotes", quietly = TRUE)) {
+    install.packages("remotes")
+  }
+  remotes::install_github("kyradelray/mcanalysis", subdir = "r-package/mcanalysis")
+}
+
 # Load the mcanalysis package
 library(mcanalysis)
 
