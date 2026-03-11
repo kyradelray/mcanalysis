@@ -322,6 +322,12 @@ ui <- page_sidebar(
     # File upload mode
     card(
       card_header(icon("cloud-upload"), " Data Upload"),
+      div(
+        style = "background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.85rem;",
+        icon("exclamation-triangle", style = "color: #856404; margin-right: 6px;"),
+        tags$strong("Data size limit: "),
+        tags$span(style = "color: #856404;", "Max ~500 users or ~50,000 rows. CSV files should be under 10MB for best performance.")
+      ),
       radioButtons("upload_mode", "Upload mode:",
                    choices = c("Separate files" = "separate",
                                "Single combined file" = "combined"),
