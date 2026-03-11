@@ -319,6 +319,22 @@ ui <- page_sidebar(
     width = 360,
     bg = "#ffffff",
 
+    # Try Example Data button
+    card(
+      card_header(icon("flask"), " Try Example Data"),
+      div(
+        style = "text-align: center;",
+        actionButton("load_example", "Load Synthetic Example",
+          icon = icon("play"),
+          class = "btn-success",
+          style = "width: 100%; margin-bottom: 8px;"
+        ),
+        tags$p(style = "font-size: 0.8rem; color: #666; margin: 0;",
+          "50 users, ~1,400 observations with simulated cycle effects"
+        )
+      )
+    ),
+
     # File upload mode
     card(
       card_header(icon("cloud-upload"), " Data Upload"),
@@ -832,6 +848,86 @@ server <- function(input, output, session) {
     selectInput("outcome_col_select", "Select outcome variable:",
                 choices = ordered_cols,
                 selected = if (length(priority_cols) > 0) priority_cols[1] else ordered_cols[1])
+  })
+
+  # Load example data
+  observeEvent(input$load_example, {
+    showNotification("Loading synthetic example data...", type = "message")
+
+    set.seed(42)
+    n_users <- 50
+
+    # Generate period dates for each user
+    periods_list <- lapply(1:n_users, function(uid) {
+      # Each user has 4-8 cycles
+      n_cycles <- sample(4:8, 1)
+      # Start date varies by user
+      start_date <- as.Date("2024-01-01") + sample(0:60, 1)
+      # Generate period dates with realistic cycle lengths (25-32 days)
+      cycle_lengths <- sample(25:32, n_cycles, replace = TRUE)
+      period_dates <- cumsum(c(0, cycle_lengths[-n_cycles]))
+
+      data.frame(
+        user_id = uid,
+        period_date = start_date + period_dates
+      )
+    })
+    periods_df <- do.call(rbind, periods_list)
+
+    # Generate outcome data with cycle effect
+    outcomes_list <- lapply(1:n_users, function(uid) {
+      user_periods <- periods_df[periods_df$user_id == uid, ]
+      # Generate daily observations for ~6 months
+      start_date <- min(user_periods$period_date) - 14
+      end_date <- max(user_periods$period_date) + 14
+      dates <- seq(start_date, end_date, by = 1)
+
+      # Base HRV varies by user (40-80 ms)
+      base_hrv <- runif(1, 40, 80)
+
+      # For each date, calculate cycle day and add cycle effect
+      hrv_values <- sapply(dates, function(d) {
+        # Find nearest period
+        diffs <- as.numeric(d - user_periods$period_date)
+        nearest_idx <- which.min(abs(diffs))
+        cycle_day <- diffs[nearest_idx]
+
+        # Sinusoidal cycle effect (~5% amplitude)
+        cycle_effect <- -3 * sin(2 * pi * cycle_day / 28)
+
+        # Add noise
+        noise <- rnorm(1, 0, 5)
+
+        base_hrv + cycle_effect + noise
+      })
+
+      data.frame(
+        user_id = uid,
+        date = dates,
+        hrv = round(pmax(hrv_values, 10), 1)  # Ensure positive
+      )
+    })
+    outcomes_df <- do.call(rbind, outcomes_list)
+
+    # Generate confounder data
+    confounders_df <- data.frame(
+      user_id = 1:n_users,
+      age = round(runif(n_users, 20, 45)),
+      bmi = round(runif(n_users, 18, 32), 1)
+    )
+
+    # Set reactive values
+    rv$periods <- periods_df
+    rv$outcomes <- outcomes_df
+    rv$confounders <- confounders_df
+
+    # Update column selectors
+    updateSelectInput(session, "id_col", selected = "user_id")
+    updateSelectInput(session, "date_col", selected = "period_date")
+    updateSelectInput(session, "outcome_col", selected = "hrv")
+    updateSelectInput(session, "outcome_date_col", selected = "date")
+
+    showNotification("Example data loaded! Click 'Run Analysis' to proceed.", type = "message")
   })
 
   # Data preview (limited to 10 rows to save memory)
