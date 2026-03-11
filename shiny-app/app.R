@@ -319,22 +319,6 @@ ui <- page_sidebar(
     width = 360,
     bg = "#ffffff",
 
-    # Try Example Data button
-    card(
-      card_header(icon("flask"), " Try Example Data"),
-      div(
-        style = "text-align: center;",
-        actionButton("load_example", "Load Synthetic Example",
-          icon = icon("play"),
-          class = "btn-success",
-          style = "width: 100%; margin-bottom: 8px;"
-        ),
-        tags$p(style = "font-size: 0.8rem; color: #666; margin: 0;",
-          "50 users, ~1,400 observations with simulated cycle effects"
-        )
-      )
-    ),
-
     # File upload mode
     card(
       card_header(icon("cloud-upload"), " Data Upload"),
@@ -455,7 +439,13 @@ ui <- page_sidebar(
       ),
       actionButton("run_analysis", "Run Analysis",
                    class = "btn-primary btn-lg w-100 mt-3",
-                   icon = icon("play"))
+                   icon = icon("play")),
+      div(
+        style = "text-align: center; margin-top: 12px;",
+        actionLink("load_example", "Or try with example data",
+          style = "font-size: 0.85rem; color: #666;"
+        )
+      )
     ),
 
   ),
@@ -690,11 +680,21 @@ ui <- page_sidebar(
     ),
     # Version and Links
     div(
-      style = "margin-top: 1.5rem;",
-      tags$a(href = "https://github.com/KyraDelray/mcanalysis", target = "_blank",
+      style = "margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e9ecef;",
+      div(
+        style = "background-color: #f8f9fa; padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem;",
+        icon("lightbulb", style = "color: #1e3a5f; margin-right: 6px;"),
+        tags$strong("Need to analyze larger datasets?"),
+        tags$br(),
+        tags$span(style = "color: #666;",
+          "Use the ", tags$a(href = "https://github.com/kyradelray/mcanalysis", target = "_blank", "R/Python package"),
+          " for unlimited data, or ", tags$a(href = "mailto:kyra.delray@wolfson.ox.ac.uk", "contact me"), "."
+        )
+      ),
+      tags$a(href = "https://github.com/kyradelray/mcanalysis", target = "_blank",
              icon("github"), " View on GitHub"),
       span(" | ", style = "color: #dee2e6;"),
-      span(paste0("Version 1.0.0 | ", format(Sys.Date(), "%Y")))
+      span(paste0("v1.0.0 | ", format(Sys.Date(), "%Y")))
     )
   )
 )
@@ -921,13 +921,52 @@ server <- function(input, output, session) {
     rv$outcomes <- outcomes_df
     rv$confounders <- confounders_df
 
-    # Update column selectors
-    updateSelectInput(session, "id_col", selected = "user_id")
-    updateSelectInput(session, "date_col", selected = "period_date")
-    updateSelectInput(session, "outcome_col", selected = "hrv")
-    updateSelectInput(session, "outcome_date_col", selected = "date")
+    # Run analysis directly with example data
+    withProgress(message = "Analyzing example data...", value = 0, {
+      incProgress(0.2, detail = "Running exploratory analysis...")
 
-    showNotification("Example data loaded! Click 'Run Analysis' to proceed.", type = "message")
+      tryCatch({
+        rv$eda_results <- run_exploratory_analysis(
+          period_dates = periods_df,
+          outcome_data = outcomes_df,
+          confounder_data = confounders_df,
+          id_col = "user_id",
+          date_col = "period_date",
+          outcome_col = "hrv",
+          outcome_date_col = "date"
+        )
+      }, error = function(e) {
+        showNotification(paste("EDA error:", e$message), type = "warning")
+      })
+
+      incProgress(0.5, detail = "Fitting GAM model...")
+
+      tryCatch({
+        rv$results <- mc_analysis(
+          period_dates = periods_df,
+          outcome_data = outcomes_df,
+          confounder_data = confounders_df,
+          id_col = "user_id",
+          date_col = "period_date",
+          outcome_col = "hrv",
+          outcome_date_col = "date",
+          min_cycle_length = 21,
+          max_cycle_length = 35,
+          min_negative_obs = 5,
+          min_positive_obs = 5,
+          k = 2
+        )
+
+        incProgress(1, detail = "Complete!")
+        showNotification("Example analysis complete!", type = "message")
+
+        # Switch to results tab
+        updateNavlistPanel(session, "results_tabs", selected = "Cycle Effect")
+
+      }, error = function(e) {
+        showNotification(paste("Analysis error:", e$message), type = "error")
+      })
+    })
   })
 
   # Data preview (limited to 10 rows to save memory)
