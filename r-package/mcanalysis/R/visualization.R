@@ -34,7 +34,7 @@ plot_cycle_effect <- function(gam_result,
                                raw_data = NULL,
                                title = "Menstrual Cycle Effect on Outcome",
                                xlabel = "Cycle Day (Day 0 = Period Start)",
-                               ylabel = "% Change from Individual Mean",
+                               ylabel = NULL,
                                show_significance = TRUE,
                                show_phases = TRUE,
                                show_linear_models = TRUE,
@@ -51,15 +51,38 @@ plot_cycle_effect <- function(gam_result,
                                raw_data_color = "gray50") {
 
   pred_df <- gam_result$predictions
+  is_binary <- isTRUE(gam_result$is_binary)
 
   # Filter to day range
   plot_data <- pred_df[pred_df$cycle_day >= day_range[1] &
                         pred_df$cycle_day <= day_range[2], ]
 
-  # Convert to percentage change (subtract 100)
-  plot_data$predicted_pct <- plot_data$predicted - 100
-  plot_data$ci_lower_pct <- plot_data$ci_lower - 100
-  plot_data$ci_upper_pct <- plot_data$ci_upper - 100
+  if (is_binary) {
+    # For binary outcomes: use log odds
+    if (is.null(ylabel)) ylabel <- "Log Odds"
+
+    # Center log odds around mean for plotting
+    mean_logit <- mean(plot_data$log_odds)
+    plot_data$predicted_pct <- plot_data$log_odds - mean_logit
+
+    # CI from bootstrap on log odds scale (if available) or from probability
+    if ("or_ci_lower" %in% names(plot_data)) {
+      plot_data$ci_lower_pct <- log(plot_data$or_ci_lower)
+      plot_data$ci_upper_pct <- log(plot_data$or_ci_upper)
+    } else {
+      # Approximate CI on log odds from probability CI
+      eps <- 1e-6
+      plot_data$ci_lower_pct <- log(pmax(plot_data$ci_lower, eps) / pmax(1 - plot_data$ci_lower, eps)) - mean_logit
+      plot_data$ci_upper_pct <- log(pmax(plot_data$ci_upper, eps) / pmax(1 - plot_data$ci_upper, eps)) - mean_logit
+    }
+  } else {
+    # For continuous outcomes: percentage change from 100
+    if (is.null(ylabel)) ylabel <- "% Change from Personal Average"
+
+    plot_data$predicted_pct <- plot_data$predicted - 100
+    plot_data$ci_lower_pct <- plot_data$ci_lower - 100
+    plot_data$ci_upper_pct <- plot_data$ci_upper - 100
+  }
 
   # Calculate y-axis range
   y_min <- min(plot_data$ci_lower_pct, na.rm = TRUE)
@@ -237,8 +260,19 @@ plot_cycle_effect <- function(gam_result,
   if (show_significance) {
     p_val <- gam_result$p_value
     sig_stars <- if (p_val < 0.001) "***" else if (p_val < 0.01) "**" else if (p_val < 0.05) "*" else "(ns)"
-    sig_text <- paste0("Cycle Effect p-value: ", format(p_val, scientific = TRUE, digits = 2), " ", sig_stars,
-                       "  |  Deviance Explained: ", round(gam_result$deviance_explained * 100, 1), "%")
+
+    if (is_binary) {
+      # Binary outcome: show pseudo R² and peak-to-trough OR
+      or_text <- if (!is.null(gam_result$peak_trough_or)) {
+        sprintf("  |  Peak-Trough OR: %.2f", gam_result$peak_trough_or)
+      } else ""
+      sig_text <- paste0("Cycle Effect p-value: ", format(p_val, scientific = TRUE, digits = 2), " ", sig_stars,
+                         "  |  Pseudo R²: ", round(gam_result$deviance_explained * 100, 1), "%",
+                         or_text)
+    } else {
+      sig_text <- paste0("Cycle Effect p-value: ", format(p_val, scientific = TRUE, digits = 2), " ", sig_stars,
+                         "  |  Deviance Explained: ", round(gam_result$deviance_explained * 100, 1), "%")
+    }
 
     p <- p + ggplot2::labs(subtitle = sig_text)
   }

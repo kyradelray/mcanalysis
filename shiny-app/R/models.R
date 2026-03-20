@@ -1,19 +1,70 @@
+#' Check if Outcome is Binary
+#'
+#' Determine if an outcome variable is binary (0/1, TRUE/FALSE, or averaged binary).
+#' Also detects averaged binary data where values are between 0 and 1.
+#'
+#' @param x Vector of outcome values
+#' @param tolerance Tolerance for checking values (default 1e-10)
+#'
+#' @return TRUE if binary or proportion data, FALSE otherwise
+#' @export
+is_binary_outcome <- function(x, tolerance = 1e-10) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) return(FALSE)
+
+  unique_vals <- unique(x)
+
+ # Check for logical
+  if (is.logical(x)) return(TRUE)
+
+  # Check for only 0 and 1 values (strict binary)
+  if (length(unique_vals) <= 2) {
+    all_binary <- all(abs(unique_vals - round(unique_vals)) < tolerance &
+                      unique_vals >= 0 & unique_vals <= 1)
+    if (all_binary) return(TRUE)
+  }
+
+  # Check for proportion data (all values between 0 and 1, likely averaged binary)
+  # This catches cases where binary data has been averaged
+  if (all(x >= 0 & x <= 1)) {
+    # Additional check: if we have many values but they cluster near 0 and 1
+    # or if the unique values suggest it's from averaging 0/1 data
+    n_unique <- length(unique_vals)
+    if (n_unique <= 20 || all(x %in% c(0, 0.5, 1)) ||
+        (mean(x < 0.1 | x > 0.9) > 0.8)) {
+      return(TRUE)
+    }
+  }
+
+  return(FALSE)
+}
+
+
 #' Normalize Outcome
 #'
 #' Normalize outcome to percentage of each user's mean.
+#' For binary outcomes, no normalization is applied (returns original values).
 #'
 #' @param df Dataset with outcome variable
 #' @param outcome_col Name of outcome column (default "outcome")
 #'
-#' @return Data frame with normalized outcome 'a' added
+#' @return Data frame with normalized outcome 'a' added (or original for binary)
 #' @export
 normalize_outcome <- function(df, outcome_col = "outcome") {
+  # Check if binary outcome
+  if (is_binary_outcome(df[[outcome_col]])) {
+    df$a <- as.numeric(df[[outcome_col]])
+    df$is_binary <- TRUE
+    return(df)
+  }
+
   # Calculate each user's mean outcome
   user_means <- tapply(df[[outcome_col]], df$user_id, mean, na.rm = TRUE)
 
   # Express outcome as percentage of user's mean
   df$user_mean <- user_means[as.character(df$user_id)]
   df$a <- (df[[outcome_col]] / df$user_mean) * 100
+  df$is_binary <- FALSE
 
   return(df)
 }
@@ -23,6 +74,7 @@ normalize_outcome <- function(df, outcome_col = "outcome") {
 #'
 #' Fit a Generalized Additive Model of cycle day on normalized outcome.
 #' Uses Fourier basis for cyclic patterns to match Python implementation.
+#' For binary outcomes, uses logistic regression and reports odds ratios.
 #'
 #' @param df Dataset with normalized outcome
 #' @param outcome_col Name of outcome column (default "a")
@@ -30,80 +82,171 @@ normalize_outcome <- function(df, outcome_col = "outcome") {
 #' @param k Number of Fourier harmonics (default 10, maps to n_splines in Python)
 #' @param cyclic Whether to use cyclic Fourier basis (default TRUE)
 #' @param cycle_length Expected cycle length in days (default 28)
+#' @param is_binary Whether outcome is binary (default NULL, auto-detected)
 #'
 #' @return List with model, predictions, summary, and statistics
 #' @export
 fit_gam <- function(df, outcome_col = "a", day_col = "cycle_day",
-                    k = 10, cyclic = TRUE, cycle_length = 28) {
+                    k = 10, cyclic = TRUE, cycle_length = 28,
+                    is_binary = NULL) {
 
   X_days <- df[[day_col]]
   y <- df[[outcome_col]]
 
+  # Auto-detect binary if not specified
+  if (is.null(is_binary)) {
+    is_binary <- isTRUE(df$is_binary[1]) || is_binary_outcome(y)
+  }
+
   if (cyclic) {
-    # Use Fourier basis for cyclic pattern (matches Python)
     n_harmonics <- k
     X_design <- create_fourier_basis(X_days, n_harmonics, cycle_length)
-
-    # Fit OLS with Fourier terms
-    model <- lm(y ~ X_design - 1)  # -1 because X_design includes intercept
-
-    # Generate predictions
     day_range <- seq(-14, 13, length.out = 100)
     X_pred <- create_fourier_basis(day_range, n_harmonics, cycle_length)
-    pred_fit <- as.vector(X_pred %*% coef(model))
 
-    # Bootstrap for confidence intervals
-    n_boot <- 200
-    boot_preds <- matrix(0, nrow = n_boot, ncol = length(day_range))
-    set.seed(42)  # For reproducibility
-    for (i in seq_len(n_boot)) {
-      idx <- sample(length(y), length(y), replace = TRUE)
-      boot_model <- lm(y[idx] ~ X_design[idx, ] - 1)
-      boot_preds[i, ] <- as.vector(X_pred %*% coef(boot_model))
+    if (is_binary) {
+      # Use logistic regression for binary outcomes
+      model <- glm(y ~ X_design - 1, family = binomial(link = "logit"))
+
+      # Predictions on log-odds scale
+      pred_logit <- as.vector(X_pred %*% coef(model))
+      # Convert to probability
+      pred_prob <- 1 / (1 + exp(-pred_logit))
+
+      # Bootstrap for confidence intervals
+      n_boot <- 200
+      boot_preds_logit <- matrix(0, nrow = n_boot, ncol = length(day_range))
+      set.seed(42)
+      for (i in seq_len(n_boot)) {
+        idx <- sample(length(y), length(y), replace = TRUE)
+        tryCatch({
+          boot_model <- glm(y[idx] ~ X_design[idx, ] - 1, family = binomial(link = "logit"))
+          boot_preds_logit[i, ] <- as.vector(X_pred %*% coef(boot_model))
+        }, error = function(e) {
+          boot_preds_logit[i, ] <- pred_logit
+        })
+      }
+
+      # CI on probability scale
+      boot_preds_prob <- 1 / (1 + exp(-boot_preds_logit))
+      ci_lower <- apply(boot_preds_prob, 2, quantile, probs = 0.025, na.rm = TRUE)
+      ci_upper <- apply(boot_preds_prob, 2, quantile, probs = 0.975, na.rm = TRUE)
+
+      # Calculate odds ratios relative to mean
+      mean_logit <- mean(pred_logit)
+      odds_ratios <- exp(pred_logit - mean_logit)
+      or_ci_lower <- exp(apply(boot_preds_logit, 2, quantile, probs = 0.025, na.rm = TRUE) - mean_logit)
+      or_ci_upper <- exp(apply(boot_preds_logit, 2, quantile, probs = 0.975, na.rm = TRUE) - mean_logit)
+
+      # Test if cycle effect is significant (likelihood ratio test)
+      null_model <- glm(y ~ 1, family = binomial(link = "logit"))
+      lr_test <- anova(null_model, model, test = "Chisq")
+      p_value <- lr_test$`Pr(>Chi)`[2]
+
+      # Deviance explained (McFadden's pseudo R²)
+      dev_explained <- 1 - (model$deviance / null_model$deviance)
+
+      edf <- n_harmonics * 2
+      model_summary <- summary(model)
+
+      predictions <- data.frame(
+        cycle_day = day_range,
+        predicted = pred_prob,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        odds_ratio = odds_ratios,
+        or_ci_lower = or_ci_lower,
+        or_ci_upper = or_ci_upper,
+        log_odds = pred_logit
+      )
+
+      # Calculate peak-to-trough odds ratio
+      peak_idx <- which.max(pred_prob)
+      trough_idx <- which.min(pred_prob)
+      peak_trough_or <- exp(pred_logit[peak_idx] - pred_logit[trough_idx])
+
+    } else {
+      # Use OLS for continuous outcomes (original code)
+      model <- lm(y ~ X_design - 1)
+
+      pred_fit <- as.vector(X_pred %*% coef(model))
+
+      # Bootstrap for confidence intervals
+      n_boot <- 200
+      boot_preds <- matrix(0, nrow = n_boot, ncol = length(day_range))
+      set.seed(42)
+      for (i in seq_len(n_boot)) {
+        idx <- sample(length(y), length(y), replace = TRUE)
+        boot_model <- lm(y[idx] ~ X_design[idx, ] - 1)
+        boot_preds[i, ] <- as.vector(X_pred %*% coef(boot_model))
+      }
+
+      ci_lower <- apply(boot_preds, 2, quantile, probs = 0.025)
+      ci_upper <- apply(boot_preds, 2, quantile, probs = 0.975)
+
+      model_summary <- summary(model)
+      p_value <- pf(model_summary$fstatistic[1],
+                    model_summary$fstatistic[2],
+                    model_summary$fstatistic[3],
+                    lower.tail = FALSE)
+      edf <- n_harmonics * 2
+
+      y_mean <- mean(y)
+      ss_res <- sum(residuals(model)^2)
+      ss_tot <- sum((y - y_mean)^2)
+      dev_explained <- 1 - (ss_res / ss_tot)
+
+      predictions <- data.frame(
+        cycle_day = day_range,
+        predicted = pred_fit,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper
+      )
+      peak_trough_or <- NULL
     }
-
-    ci_lower <- apply(boot_preds, 2, quantile, probs = 0.025)
-    ci_upper <- apply(boot_preds, 2, quantile, probs = 0.975)
-
-    # Get statistics
-    model_summary <- summary(model)
-    p_value <- pf(model_summary$fstatistic[1],
-                  model_summary$fstatistic[2],
-                  model_summary$fstatistic[3],
-                  lower.tail = FALSE)
-    edf <- n_harmonics * 2  # Each harmonic has sin and cos
-
-    # Calculate R-squared centered around mean (like Python statsmodels)
-    # R's lm with -1 uses uncentered R² which inflates the value
-    y_mean <- mean(y)
-    ss_res <- sum(residuals(model)^2)
-    ss_tot <- sum((y - y_mean)^2)
-    dev_explained <- 1 - (ss_res / ss_tot)
-
-    predictions <- data.frame(
-      cycle_day = day_range,
-      predicted = pred_fit,
-      ci_lower = ci_lower,
-      ci_upper = ci_upper
-    )
 
   } else {
     # Use mgcv splines (non-cyclic)
-    formula <- as.formula(paste0(outcome_col, " ~ s(", day_col, ", k=", k, ")"))
-    model <- mgcv::gam(formula, data = df)
+    if (is_binary) {
+      formula <- as.formula(paste0(outcome_col, " ~ s(", day_col, ", k=", k, ")"))
+      model <- mgcv::gam(formula, data = df, family = binomial(link = "logit"))
+    } else {
+      formula <- as.formula(paste0(outcome_col, " ~ s(", day_col, ", k=", k, ")"))
+      model <- mgcv::gam(formula, data = df)
+    }
 
     day_range <- seq(min(df[[day_col]]), max(df[[day_col]]), length.out = 100)
     pred_data <- data.frame(cycle_day = day_range)
     names(pred_data) <- day_col
 
-    pred <- predict(model, newdata = pred_data, se.fit = TRUE)
+    pred <- predict(model, newdata = pred_data, se.fit = TRUE, type = "link")
 
-    predictions <- data.frame(
-      cycle_day = day_range,
-      predicted = pred$fit,
-      ci_lower = pred$fit - 1.96 * pred$se.fit,
-      ci_upper = pred$fit + 1.96 * pred$se.fit
-    )
+    if (is_binary) {
+      pred_prob <- 1 / (1 + exp(-pred$fit))
+      ci_lower <- 1 / (1 + exp(-(pred$fit - 1.96 * pred$se.fit)))
+      ci_upper <- 1 / (1 + exp(-(pred$fit + 1.96 * pred$se.fit)))
+
+      mean_logit <- mean(pred$fit)
+      odds_ratios <- exp(pred$fit - mean_logit)
+
+      predictions <- data.frame(
+        cycle_day = day_range,
+        predicted = pred_prob,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        odds_ratio = odds_ratios,
+        log_odds = pred$fit
+      )
+      peak_trough_or <- exp(max(pred$fit) - min(pred$fit))
+    } else {
+      predictions <- data.frame(
+        cycle_day = day_range,
+        predicted = pred$fit,
+        ci_lower = pred$fit - 1.96 * pred$se.fit,
+        ci_upper = pred$fit + 1.96 * pred$se.fit
+      )
+      peak_trough_or <- NULL
+    }
 
     model_summary <- summary(model)
     p_value <- model_summary$s.table[1, "p-value"]
@@ -118,7 +261,9 @@ fit_gam <- function(df, outcome_col = "a", day_col = "cycle_day",
     p_value = p_value,
     edf = edf,
     deviance_explained = dev_explained,
-    n_obs = nrow(df)
+    n_obs = nrow(df),
+    is_binary = is_binary,
+    peak_trough_or = if (is_binary) peak_trough_or else NULL
   )
 
   class(result) <- c("mcgam", "list")

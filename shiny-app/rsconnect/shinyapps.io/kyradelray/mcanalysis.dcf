@@ -1,0 +1,10 @@
+name: mcanalysis
+title:
+username: kyradelray
+account: kyradelray
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 16945620
+bundleId: 11735472
+url: https://kyradelray.shinyapps.io/mcanalysis/
+version: 1

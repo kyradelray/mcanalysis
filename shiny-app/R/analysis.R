@@ -77,13 +77,18 @@ mc_analysis <- function(period_dates,
   message("Adding dummy day for cyclical analysis...")
   df <- add_dummy_day(df)
 
-  # Step 5: Normalize outcome
-  message("Normalizing outcome to percentage of individual mean...")
+  # Step 5: Check if binary and normalize outcome
+  is_binary <- is_binary_outcome(df$outcome)
+  if (is_binary) {
+    message("Detected binary outcome - using logistic regression with log odds...")
+  } else {
+    message("Normalizing outcome to percentage of individual mean...")
+  }
   df <- normalize_outcome(df, outcome_col = "outcome")
 
   # Step 6: Fit GAM
   message("Fitting GAM model...")
-  gam_result <- fit_gam(df, outcome_col = "a", k = k, cyclic = TRUE)
+  gam_result <- fit_gam(df, outcome_col = "a", k = k, cyclic = TRUE, is_binary = is_binary)
 
   # Step 7: Find turning points
   message("Finding turning points...")
@@ -111,7 +116,63 @@ mc_analysis <- function(period_dates,
   n_cycles <- sum(tapply(df$cycle_id, df$user_id, function(x) length(unique(x))))
 
   # Create summary text
-  summary_text <- sprintf("
+  if (isTRUE(gam_result$is_binary)) {
+    # Binary outcome summary with log odds
+    peak_idx <- which.max(gam_result$predictions$predicted)
+    trough_idx <- which.min(gam_result$predictions$predicted)
+    peak_day <- round(gam_result$predictions$cycle_day[peak_idx])
+    trough_day <- round(gam_result$predictions$cycle_day[trough_idx])
+    peak_prob <- gam_result$predictions$predicted[peak_idx]
+    trough_prob <- gam_result$predictions$predicted[trough_idx]
+    peak_logit <- gam_result$predictions$log_odds[peak_idx]
+    trough_logit <- gam_result$predictions$log_odds[trough_idx]
+
+    summary_text <- sprintf("
+================================================================================
+                     MENSTRUAL CYCLE ANALYSIS SUMMARY
+                           (Binary Outcome - Logistic Model)
+================================================================================
+
+DATA SUMMARY
+------------
+  Users analyzed: %d
+  Total observations: %d
+  Total cycles: %d
+
+LOGISTIC GAM RESULTS
+--------------------
+  Effective degrees of freedom: %.2f
+  Pseudo R² (McFadden): %.1f%%
+  P-value for cycle effect: %.2e %s
+
+LOG ODDS SUMMARY
+----------------
+  Peak probability: %.1f%% at Day %d (log odds: %.3f)
+  Trough probability: %.1f%% at Day %d (log odds: %.3f)
+  Peak-to-trough odds ratio: %.2f
+
+TURNING POINTS
+--------------
+  Number found: %d
+  Days: %s
+
+PHASE MODELS (Daily Change in Log Odds)
+---------------------------------------
+",
+      n_users, n_obs, n_cycles,
+      gam_result$edf,
+      gam_result$deviance_explained * 100,
+      gam_result$p_value,
+      if (gam_result$p_value < 0.001) "***" else if (gam_result$p_value < 0.01) "**" else if (gam_result$p_value < 0.05) "*" else "(not significant)",
+      peak_prob * 100, peak_day, peak_logit,
+      trough_prob * 100, trough_day, trough_logit,
+      gam_result$peak_trough_or,
+      length(turning_points),
+      if (length(turning_points) > 0) paste(round(turning_points, 1), collapse = ", ") else "None"
+    )
+  } else {
+    # Continuous outcome summary (original)
+    summary_text <- sprintf("
 ================================================================================
                      MENSTRUAL CYCLE ANALYSIS SUMMARY
 ================================================================================
@@ -136,14 +197,15 @@ TURNING POINTS
 PHASE MODELS (Daily Change)
 ---------------------------
 ",
-    n_users, n_obs, n_cycles,
-    gam_result$edf,
-    gam_result$deviance_explained * 100,
-    gam_result$p_value,
-    if (gam_result$p_value < 0.001) "***" else if (gam_result$p_value < 0.01) "**" else if (gam_result$p_value < 0.05) "*" else "(not significant)",
-    length(turning_points),
-    if (length(turning_points) > 0) paste(round(turning_points, 1), collapse = ", ") else "None"
-  )
+      n_users, n_obs, n_cycles,
+      gam_result$edf,
+      gam_result$deviance_explained * 100,
+      gam_result$p_value,
+      if (gam_result$p_value < 0.001) "***" else if (gam_result$p_value < 0.01) "**" else if (gam_result$p_value < 0.05) "*" else "(not significant)",
+      length(turning_points),
+      if (length(turning_points) > 0) paste(round(turning_points, 1), collapse = ", ") else "None"
+    )
+  }
 
   # Add phase model details
   if (nrow(phase_models) > 0) {
@@ -177,12 +239,20 @@ PHASE MODELS (Daily Change)
   result <- list(
     processed_data = df,
     gam_result = gam_result,
+    gam_results = list(
+      p_value = gam_result$p_value,
+      deviance_explained = gam_result$deviance_explained * 100,
+      is_binary = isTRUE(gam_result$is_binary),
+      peak_trough_or = gam_result$peak_trough_or
+    ),
     turning_points = turning_points,
     phase_models = phase_models,
     confounder_results = confounder_results,
     n_users = n_users,
+    n_obs = n_obs,
     n_observations = n_obs,
     n_cycles = n_cycles,
+    is_binary = isTRUE(gam_result$is_binary),
     summary = summary_text
   )
 
